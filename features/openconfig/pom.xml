@@ -18,6 +18,7 @@
     <module>telemetry-client</module>
     <module>yang</module>
     <module>registry</module>
+    <module>simulator</module>
   </modules>
 
 </project>
