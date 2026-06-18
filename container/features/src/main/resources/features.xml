@@ -1107,6 +1107,7 @@
         <feature>opennms-telemetry-collection</feature>
         <feature>opennms-telemetry-openconfig-client</feature>
         <feature>opennms-rpc-utils</feature>
+        <feature version="${guavaOsgiVersion}">guava</feature>
         <bundle>wrap:mvn:com.google.protobuf/protobuf-java/${protobufVersion}</bundle>
         <bundle>mvn:org.opennms.core.grpc/org.opennms.core.grpc.osgi/${project.version}</bundle>
         <bundle>mvn:org.opennms.features.openconfig/org.opennms.features.openconfig.api/${project.version}</bundle>
@@ -1117,6 +1118,9 @@
         <bundle>mvn:org.opennms.features.telemetry.protocols.openconfig/org.opennms.features.telemetry.protocols.openconfig.connector/${project.version}</bundle>
         <bundle>mvn:org.opennms.features.telemetry/org.opennms.features.telemetry.connectors/${project.version}</bundle>
         <bundle>mvn:org.opennms.core.ipc.sink/org.opennms.core.ipc.sink.api/${project.version}</bundle>
+        <!-- NMS-19857: YANG schema-driven decoding — self-contained bundle (yangtools embedded) -->
+        <bundle>mvn:org.opennms.features.openconfig/org.opennms.features.openconfig.yang/${project.version}</bundle>
+        <bundle>mvn:org.opennms.features.openconfig/org.opennms.features.openconfig.registry/${project.version}</bundle>
     </feature>
     <feature name="opennms-telemetry-openconfig-client" description="OpenNMS :: Telemetry :: OpenConfig :: Client" version="${project.version}">
         <bundle dependency="true">wrap:mvn:com.google.protobuf/protobuf-java/${protobufVersion}</bundle>

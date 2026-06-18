@@ -13,7 +13,24 @@
   <artifactId>org.opennms.features.openconfig.registry</artifactId>
   <name>OpenNMS :: Features :: OpenConfig :: Registry</name>
   <!-- Bridges the database YANG registry (model sets) to the schema cache + decoder (NMS-19857). -->
-  <packaging>jar</packaging>
+  <packaging>bundle</packaging>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+            <Bundle-Version>${project.version}</Bundle-Version>
+            <Export-Package>org.opennms.features.openconfig.registry</Export-Package>
+          </instructions>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 
   <dependencies>
     <dependency>
