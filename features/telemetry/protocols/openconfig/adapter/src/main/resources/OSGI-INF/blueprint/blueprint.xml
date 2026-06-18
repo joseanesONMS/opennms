@@ -17,6 +17,8 @@
   <reference id="transactionTemplate" interface="org.springframework.transaction.support.TransactionOperations" />
   <reference id="persisterFactory" interface="org.opennms.netmgt.collection.api.PersisterFactory" />
   <reference id="thresholdingService" interface="org.opennms.netmgt.threshd.api.ThresholdingService" />
+  <!-- YANG model-set registry for schema-driven decoding (NMS-19857, Phase 2) -->
+  <reference id="yangModelSetDao" interface="org.opennms.netmgt.dao.api.YangModelSetDao" />
 
   <bean id="openConfigAdapterFactory" class="org.opennms.netmgt.telemetry.protocols.openconfig.adapter.OpenConfigAdapterFactory">
     <argument ref="blueprintBundleContext" />
@@ -28,6 +30,7 @@
     <property name="filterDao" ref="filterDao" />
     <property name="persisterFactory" ref="persisterFactory" />
     <property name="thresholdingService" ref="thresholdingService" />
+    <property name="yangModelSetDao" ref="yangModelSetDao" />
   </bean>
 
   <service id="opeConfigFactoryService" ref="openConfigAdapterFactory" interface="org.opennms.netmgt.telemetry.api.adapter.AdapterFactory">

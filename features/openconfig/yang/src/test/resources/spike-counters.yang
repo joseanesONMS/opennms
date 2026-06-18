@@ -1,0 +1,37 @@
+module spike-counters {
+  yang-version 1.1;
+  namespace "urn:opennms:spike:counters";
+  prefix sc;
+
+  description
+    "Self-contained YANG fixture for the Phase 2 spike (NMS-19857). Has no imports so it can be
+     parsed in isolation, while still exercising the constructs the real registry must extract:
+     a keyed list (resource instances), and a leaf whose type derives from a typedef carrying
+     units (the OpenConfig pattern for counters).";
+
+  typedef counter64 {
+    type uint64;
+    units "packets";
+    description "Stand-in for ietf-yang-types:counter64, with units on the typedef.";
+  }
+
+  container interfaces {
+    list interface {
+      key "name";
+      description "A keyed list — its key becomes the OpenNMS resource instance.";
+      leaf name {
+        type string;
+      }
+      container state {
+        leaf in-pkts {
+          type counter64;
+          description "Inbound packet count — should map to a COUNTER metric, unit 'packets'.";
+        }
+        leaf admin-status {
+          type string;
+          description "A non-numeric leaf — should map to OTHER, not a metric.";
+        }
+      }
+    }
+  }
+}

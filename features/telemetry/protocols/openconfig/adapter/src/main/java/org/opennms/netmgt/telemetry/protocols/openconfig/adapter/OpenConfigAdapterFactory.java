@@ -21,12 +21,21 @@
  */
 package org.opennms.netmgt.telemetry.protocols.openconfig.adapter;
 
+import org.opennms.features.openconfig.registry.DbYangSourceProvider;
+import org.opennms.features.openconfig.registry.YangRegistry;
+import org.opennms.netmgt.dao.api.YangModelSetDao;
+import org.opennms.netmgt.model.YangModelSet;
 import org.opennms.netmgt.telemetry.api.adapter.Adapter;
 import org.opennms.netmgt.telemetry.config.api.AdapterDefinition;
 import org.opennms.netmgt.telemetry.protocols.collection.AbstractCollectionAdapterFactory;
 import org.osgi.framework.BundleContext;
+import org.springframework.transaction.support.TransactionOperations;
 
 public class OpenConfigAdapterFactory extends AbstractCollectionAdapterFactory {
+
+    /** Optional: when wired, enables schema-driven (YANG) decoding (NMS-19857, Phase 2). */
+    private YangModelSetDao yangModelSetDao;
+    private volatile YangRegistry yangRegistry;
 
     public OpenConfigAdapterFactory() {
         super(null);
@@ -34,6 +43,29 @@ public class OpenConfigAdapterFactory extends AbstractCollectionAdapterFactory {
 
     public OpenConfigAdapterFactory(BundleContext bundleContext) {
         super(bundleContext);
+    }
+
+    public void setYangModelSetDao(YangModelSetDao yangModelSetDao) {
+        this.yangModelSetDao = yangModelSetDao;
+    }
+
+    /**
+     * Lazily builds a {@link YangRegistry} backed by the database model-set registry. The model-set
+     * lookup runs inside the adapter's transaction and forces initialization of the lazily-loaded
+     * module set so the schema closure can be compiled outside the session.
+     */
+    private YangRegistry yangRegistry() {
+        if (yangRegistry == null && yangModelSetDao != null) {
+            final TransactionOperations tx = getTransactionTemplate();
+            yangRegistry = new YangRegistry(new DbYangSourceProvider(name -> tx.execute(status -> {
+                final YangModelSet set = yangModelSetDao.findByName(name);
+                if (set != null) {
+                    set.getModules().size(); // force lazy initialization within the transaction
+                }
+                return set;
+            })));
+        }
+        return yangRegistry;
     }
 
     @Override
@@ -52,6 +84,7 @@ public class OpenConfigAdapterFactory extends AbstractCollectionAdapterFactory {
         adapter.setPersisterFactory(getPersisterFactory());
         adapter.setThresholdingService(getThresholdingService());
         adapter.setBundleContext(getBundleContext());
+        adapter.setYangRegistry(yangRegistry());
         return adapter;
     }
 }

@@ -1,0 +1,15 @@
+module oc-types {
+  yang-version 1.1;
+  namespace "urn:opennms:spike:octypes";
+  prefix oct;
+
+  description
+    "Closure-test typedef module (NMS-19857). Imported by oc-interfaces to prove the registry
+     resolves a multi-module import closure and propagates a typedef's units across modules.";
+
+  typedef counter64 {
+    type uint64;
+    units "octets";
+    description "Imported 64-bit byte counter with units on the typedef.";
+  }
+}

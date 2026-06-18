@@ -1,0 +1,31 @@
+module oc-interfaces {
+  yang-version 1.1;
+  namespace "urn:opennms:spike:ocif";
+  prefix ocif;
+
+  import oc-types {
+    prefix oct;
+  }
+
+  description
+    "Closure-test data module (NMS-19857) mirroring the OpenConfig shape
+     /interfaces/interface[name]/state/counters/<leaf>, where the counter leaf's type comes from an
+     imported module. Proves cross-module type + units resolution through an import closure.";
+
+  container interfaces {
+    list interface {
+      key "name";
+      leaf name {
+        type string;
+      }
+      container state {
+        container counters {
+          leaf in-octets {
+            type oct:counter64;
+            description "Inbound byte counter; type and units come from the imported oc-types.";
+          }
+        }
+      }
+    }
+  }
+}

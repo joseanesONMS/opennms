@@ -440,6 +440,13 @@
           "roles": ["ROLE_ADMIN", "ROLE_PROVISION"]
         },
         {
+          "id": "openConfig",
+          "name": "Streaming Telemetry (OpenConfig)",
+          "url": "ui/index.html#/openconfig",
+          "locationMatch": "",
+          "roles": ["ROLE_ADMIN", "ROLE_PROVISION"]
+        },
+        {
           "id": "trapConfiguration",
           "name": "Trap Configuration",
           "url": "ui/index.html#/trapd-config",

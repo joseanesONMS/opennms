@@ -16,6 +16,8 @@
     <module>api</module>
     <module>common</module>
     <module>telemetry-client</module>
+    <module>yang</module>
+    <module>registry</module>
   </modules>
 
 </project>

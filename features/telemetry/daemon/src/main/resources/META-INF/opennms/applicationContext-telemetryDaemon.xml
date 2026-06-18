@@ -40,5 +40,23 @@
         <constructor-arg ref="locationPublisherManager"/>
     </bean>
 
+    <!-- Database-backed OpenConfig streaming-telemetry configuration (NMS-19857) -->
+    <onmsgi:reference id="openConfigSubscriptionProfileDao"
+                      interface="org.opennms.netmgt.dao.api.OpenConfigSubscriptionProfileDao"/>
+    <onmsgi:reference id="openConfigTargetDao"
+                      interface="org.opennms.netmgt.dao.api.OpenConfigTargetDao"/>
+    <onmsgi:reference id="openConfigSecureCredentialsVault"
+                      interface="org.opennms.features.scv.api.SecureCredentialsVault"/>
+    <onmsgi:reference id="openConfigTransactionTemplate"
+                      interface="org.springframework.transaction.support.TransactionOperations"/>
+
+    <bean id="openConfigDbConfigSource"
+          class="org.opennms.netmgt.telemetry.daemon.OpenConfigDbConfigSource">
+        <constructor-arg ref="openConfigSubscriptionProfileDao"/>
+        <constructor-arg ref="openConfigTargetDao"/>
+        <constructor-arg ref="openConfigSecureCredentialsVault"/>
+        <constructor-arg ref="openConfigTransactionTemplate"/>
+    </bean>
+
 
 </beans>

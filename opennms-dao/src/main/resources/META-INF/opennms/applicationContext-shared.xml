@@ -322,5 +322,25 @@
         <property name="sessionFactory" ref="sessionFactory" />
     </bean>
 
+    <!-- OpenConfig streaming-telemetry configuration (NMS-19857) -->
+    <onmsgi:service interface="org.opennms.netmgt.dao.api.OpenConfigSubscriptionProfileDao" ref="openConfigSubscriptionProfileDao" />
+    <bean id="openConfigSubscriptionProfileDao" class="org.opennms.netmgt.dao.hibernate.OpenConfigSubscriptionProfileDaoHibernate">
+        <property name="sessionFactory" ref="sessionFactory" />
+    </bean>
+    <onmsgi:service interface="org.opennms.netmgt.dao.api.OpenConfigTargetDao" ref="openConfigTargetDao" />
+    <bean id="openConfigTargetDao" class="org.opennms.netmgt.dao.hibernate.OpenConfigTargetDaoHibernate">
+        <property name="sessionFactory" ref="sessionFactory" />
+    </bean>
+
+    <!-- YANG model registry (NMS-19857, Phase 2) -->
+    <onmsgi:service interface="org.opennms.netmgt.dao.api.YangModuleDao" ref="yangModuleDao" />
+    <bean id="yangModuleDao" class="org.opennms.netmgt.dao.hibernate.YangModuleDaoHibernate">
+        <property name="sessionFactory" ref="sessionFactory" />
+    </bean>
+    <onmsgi:service interface="org.opennms.netmgt.dao.api.YangModelSetDao" ref="yangModelSetDao" />
+    <bean id="yangModelSetDao" class="org.opennms.netmgt.dao.hibernate.YangModelSetDaoHibernate">
+        <property name="sessionFactory" ref="sessionFactory" />
+    </bean>
+
 
 </beans>

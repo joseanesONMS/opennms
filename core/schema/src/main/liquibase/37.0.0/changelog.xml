@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+    <!-- OpenConfig Streaming Telemetry Configuration Database Schema (NMS-19857) -->
+
+    <!-- 1. Subscription Profiles: the "what/how" of a subscription, reusable across many devices -->
+    <changeSet author="janes" id="37.0.0-openconfig-subscription-profiles-table">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="openconfig_subscription_profiles"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="openconfig_subscription_profiles">
+            <column name="id" type="integer">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(256)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="description" type="text"/>
+            <column name="transport" type="varchar(64)" defaultValue="GNMI_DIALIN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="encoding" type="varchar(64)" defaultValue="PROTO">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sample_interval" type="bigint"/>
+            <column name="paths" type="text"/>
+            <column name="origin" type="varchar(128)" defaultValue="openconfig"/>
+            <column name="rrd_step" type="integer" defaultValueNumeric="300">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rrd_rras" type="text"/>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_time" type="timestamp with time zone" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_modified" type="timestamp with time zone"/>
+            <column name="uploaded_by" type="varchar(256)"/>
+        </createTable>
+
+        <createSequence sequenceName="openconfig_subscription_profiles_id_seq" startValue="1" incrementBy="1"/>
+
+        <rollback>
+            <dropTable tableName="openconfig_subscription_profiles"/>
+        </rollback>
+    </changeSet>
+
+    <!-- 2. Targets: bind a profile to devices, by filter rule or explicit node list, with transport details -->
+    <changeSet author="janes" id="37.0.0-openconfig-targets-table">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="openconfig_targets"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="openconfig_targets">
+            <column name="id" type="integer">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="profile_id" type="integer">
+                <constraints nullable="false"
+                             foreignKeyName="fk_openconfig_targets_profile"
+                             references="openconfig_subscription_profiles(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="name" type="varchar(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="match_type" type="varchar(32)" defaultValue="FILTER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filter_rule" type="text"/>
+            <column name="node_ids" type="text"/>
+            <column name="port" type="integer"/>
+            <!-- Secure Credentials Vault aliases; secrets themselves never live in this table -->
+            <column name="credential_ref" type="varchar(256)"/>
+            <column name="tls_ref" type="varchar(256)"/>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_time" type="timestamp with time zone" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_modified" type="timestamp with time zone"/>
+            <column name="uploaded_by" type="varchar(256)"/>
+        </createTable>
+
+        <createSequence sequenceName="openconfig_targets_id_seq" startValue="1" incrementBy="1"/>
+
+        <addUniqueConstraint tableName="openconfig_targets"
+                             columnNames="profile_id, name"
+                             constraintName="uq_openconfig_targets_profile_name"/>
+
+        <createIndex tableName="openconfig_targets" indexName="idx_openconfig_targets_profile">
+            <column name="profile_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="openconfig_targets"/>
+        </rollback>
+    </changeSet>
+
+    <!-- YANG model registry (NMS-19857, Phase 2): versioned modules grouped into model sets -->
+    <changeSet author="janes" id="37.0.0-yang-modules-table">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="yang_modules"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="yang_modules">
+            <column name="id" type="integer">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(256)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- YANG revision date (yyyy-mm-dd); null for unrevisioned modules -->
+            <column name="revision" type="varchar(32)"/>
+            <column name="namespace" type="varchar(512)"/>
+            <column name="openconfig_version" type="varchar(64)"/>
+            <column name="content" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_filename" type="varchar(512)"/>
+            <column name="uploaded_by" type="varchar(256)"/>
+            <column name="created_time" type="timestamp with time zone" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createSequence sequenceName="yang_modules_id_seq" startValue="1" incrementBy="1"/>
+
+        <addUniqueConstraint tableName="yang_modules"
+                             columnNames="name, revision"
+                             constraintName="uq_yang_modules_name_revision"/>
+
+        <rollback>
+            <dropTable tableName="yang_modules"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet author="janes" id="37.0.0-yang-model-sets-table">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="yang_model_sets"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="yang_model_sets">
+            <column name="id" type="integer">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="varchar(256)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="version" type="varchar(64)"/>
+            <column name="description" type="text"/>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_time" type="timestamp with time zone" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_modified" type="timestamp with time zone"/>
+        </createTable>
+
+        <createSequence sequenceName="yang_model_sets_id_seq" startValue="1" incrementBy="1"/>
+
+        <rollback>
+            <dropTable tableName="yang_model_sets"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet author="janes" id="37.0.0-yang-model-set-modules-table">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="yang_model_set_modules"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="yang_model_set_modules">
+            <column name="model_set_id" type="integer">
+                <constraints nullable="false"
+                             foreignKeyName="fk_yangmsm_model_set"
+                             references="yang_model_sets(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="module_id" type="integer">
+                <constraints nullable="false"
+                             foreignKeyName="fk_yangmsm_module"
+                             references="yang_modules(id)"
+                             deleteCascade="true"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey tableName="yang_model_set_modules"
+                       columnNames="model_set_id, module_id"
+                       constraintName="pk_yang_model_set_modules"/>
+
+        <createIndex tableName="yang_model_set_modules" indexName="idx_yangmsm_module">
+            <column name="module_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="yang_model_set_modules"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Bind a subscription profile to a YANG model set for schema-driven decoding (NMS-19857) -->
+    <changeSet author="janes" id="37.0.0-openconfig-profiles-add-model-set">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="openconfig_subscription_profiles" columnName="model_set"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="openconfig_subscription_profiles">
+            <column name="model_set" type="varchar(256)"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="openconfig_subscription_profiles" columnName="model_set"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -89,6 +89,14 @@ public class Telemetryd implements SpringServiceDaemon, TelemetryManager {
     @Autowired
     private ConnectorManager connectorManager;
 
+    /**
+     * Optional source of database-backed OpenConfig connector/queue configuration (NMS-19857).
+     * When present, its materialized connectors/queues are merged with the XML configuration on
+     * every start (including reloads), making the database the source of truth for OpenConfig.
+     */
+    @Autowired(required = false)
+    private OpenConfigDbConfigSource openConfigDbConfigSource;
+
     private List<TelemetryMessageConsumer> consumers = new ArrayList<>();
     private List<Listener> listeners = new ArrayList<>();
 
@@ -98,7 +106,23 @@ public class Telemetryd implements SpringServiceDaemon, TelemetryManager {
             throw new IllegalStateException(NAME + " is already started.");
         }
         LOG.info("{} is starting.", NAME);
-        final TelemetrydConfig config = telemetrydConfigDao.getContainer().getObject();
+        final TelemetrydConfig xmlConfig = telemetrydConfigDao.getContainer().getObject();
+
+        // Merge XML configuration with any database-backed OpenConfig configuration without
+        // mutating the DAO's cached object. The merged copy is what we start from.
+        final TelemetrydConfig config = new TelemetrydConfig();
+        config.setListeners(xmlConfig.getListeners());
+        config.setQueues(new ArrayList<>(xmlConfig.getQueues()));
+        config.setConnectors(new ArrayList<>(xmlConfig.getConnectors()));
+        if (openConfigDbConfigSource != null) {
+            final OpenConfigDbConfigSource.Materialized materialized = openConfigDbConfigSource.materialize();
+            if (!materialized.isEmpty()) {
+                LOG.info("Merging {} database-backed OpenConfig connector(s) and {} queue(s).",
+                        materialized.getConnectors().size(), materialized.getQueues().size());
+                config.getQueues().addAll(materialized.getQueues());
+                config.getConnectors().addAll(materialized.getConnectors());
+            }
+        }
         final AutowireCapableBeanFactory beanFactory = applicationContext.getAutowireCapableBeanFactory();
 
         // First we create the queues as parsers may reference them

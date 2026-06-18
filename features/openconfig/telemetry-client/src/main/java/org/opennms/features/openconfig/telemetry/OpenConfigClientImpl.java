@@ -32,6 +32,7 @@ import org.opennms.core.grpc.common.GrpcClientBuilder;
 import org.opennms.core.utils.InetAddressUtils;
 import org.opennms.core.utils.StringUtils;
 import org.opennms.features.openconfig.api.OpenConfigClient;
+import org.opennms.features.openconfig.api.OpenConfigTransport;
 import org.opennms.features.openconfig.proto.gnmi.Gnmi;
 import org.opennms.features.openconfig.proto.gnmi.gNMIGrpc;
 import org.opennms.features.openconfig.proto.jti.OpenConfigTelemetryGrpc;
@@ -87,7 +88,6 @@ public class OpenConfigClientImpl implements OpenConfigClient {
     private static final String FREQUENCY = "frequency";
     private static final String INTERVAL = "interval";
     private static final String RETRIES = "retries";
-    private static final String JTI_MODE = "jti";
     private static final String ORIGIN = "origin";
     private static final String DEFAULT_ORIGIN = "openconfig";
     private static final String USERNAME_FIELD = "username";
@@ -165,44 +165,54 @@ public class OpenConfigClientImpl implements OpenConfigClient {
 
 
     private void subscribeToTelemetry(Handler handler, String host) {
-
-        // Defaults to gnmi
-        if (JTI_MODE.equalsIgnoreCase(mode)) {
-            OpenConfigTelemetryGrpc.OpenConfigTelemetryStub asyncStub = OpenConfigTelemetryGrpc.newStub(channel);
-            Telemetry.SubscriptionRequest.Builder requestBuilder = Telemetry.SubscriptionRequest.newBuilder();
-            paramList.forEach(entry -> {
-                Integer frequency = StringUtils.parseInt(entry.get(FREQUENCY), DEFAULT_FREQUENCY);
-                String pathString = entry.get(PATHS);
-                List<String> paths = pathString != null ? Arrays.asList(pathString.split(",", -1)) : new ArrayList<>();
-                paths.forEach(path -> requestBuilder.addPathList(Telemetry.Path.newBuilder().setPath(path).setSampleFrequency(frequency).build()));
-            });
-            asyncStub.telemetrySubscribe(requestBuilder.build(), new TelemetryDataHandler(this.host, port, handler));
-            LOG.info("Subscribed to OpenConfig telemetry stream at {}:{}", host, port);
-        } else {
-
-            gNMIGrpc.gNMIStub gNMIStub = gNMIGrpc.newStub(channel);
-            Gnmi.SubscribeRequest.Builder requestBuilder = Gnmi.SubscribeRequest.newBuilder();
-            Gnmi.SubscriptionList.Builder subscriptionListBuilder = Gnmi.SubscriptionList.newBuilder();
-            paramList.forEach(entry -> {
-                Long frequency = StringUtils.parseLong(entry.get(FREQUENCY), DEFAULT_FREQUENCY_FOR_GNMI);
-                String pathString = entry.get(PATHS);
-                String origin = entry.get(ORIGIN);
-                List<String> paths = pathString != null ? Arrays.asList(pathString.split(",", -1)) : new ArrayList<>();
-                paths.forEach(path -> {
-                    Gnmi.Path gnmiPath = buildGnmiPath(path, origin);
-                    Gnmi.Subscription subscription = Gnmi.Subscription.newBuilder()
-                            .setPath(gnmiPath)
-                            .setSampleInterval(frequency)
-                            .setMode(Gnmi.SubscriptionMode.SAMPLE).build();
-                    subscriptionListBuilder.addSubscription(subscription);
-                    subscriptionListBuilder.setMode(Gnmi.SubscriptionList.Mode.STREAM);
-                });
-            });
-            requestBuilder.setSubscribe(subscriptionListBuilder.build());
-            StreamObserver<Gnmi.SubscribeRequest> requestStreamObserver = gNMIStub.subscribe(new GnmiDataHandler(handler, this.host, port));
-            requestStreamObserver.onNext(requestBuilder.build());
-            LOG.info("Subscribed to OpenConfig telemetry stream at {}:{}", host, port);
+        // Defaults to gnmi dial-in; jti is the legacy Juniper transport.
+        switch (OpenConfigTransport.fromMode(mode)) {
+            case JTI:
+                subscribeJti(handler, host);
+                break;
+            case GNMI_DIALIN:
+            default:
+                subscribeGnmi(handler, host);
+                break;
         }
+    }
+
+    private void subscribeJti(Handler handler, String host) {
+        OpenConfigTelemetryGrpc.OpenConfigTelemetryStub asyncStub = OpenConfigTelemetryGrpc.newStub(channel);
+        Telemetry.SubscriptionRequest.Builder requestBuilder = Telemetry.SubscriptionRequest.newBuilder();
+        paramList.forEach(entry -> {
+            Integer frequency = StringUtils.parseInt(entry.get(FREQUENCY), DEFAULT_FREQUENCY);
+            String pathString = entry.get(PATHS);
+            List<String> paths = pathString != null ? Arrays.asList(pathString.split(",", -1)) : new ArrayList<>();
+            paths.forEach(path -> requestBuilder.addPathList(Telemetry.Path.newBuilder().setPath(path).setSampleFrequency(frequency).build()));
+        });
+        asyncStub.telemetrySubscribe(requestBuilder.build(), new TelemetryDataHandler(this.host, port, handler));
+        LOG.info("Subscribed to OpenConfig telemetry stream at {}:{}", host, port);
+    }
+
+    private void subscribeGnmi(Handler handler, String host) {
+        gNMIGrpc.gNMIStub gNMIStub = gNMIGrpc.newStub(channel);
+        Gnmi.SubscribeRequest.Builder requestBuilder = Gnmi.SubscribeRequest.newBuilder();
+        Gnmi.SubscriptionList.Builder subscriptionListBuilder = Gnmi.SubscriptionList.newBuilder();
+        paramList.forEach(entry -> {
+            Long frequency = StringUtils.parseLong(entry.get(FREQUENCY), DEFAULT_FREQUENCY_FOR_GNMI);
+            String pathString = entry.get(PATHS);
+            String origin = entry.get(ORIGIN);
+            List<String> paths = pathString != null ? Arrays.asList(pathString.split(",", -1)) : new ArrayList<>();
+            paths.forEach(path -> {
+                Gnmi.Path gnmiPath = buildGnmiPath(path, origin);
+                Gnmi.Subscription subscription = Gnmi.Subscription.newBuilder()
+                        .setPath(gnmiPath)
+                        .setSampleInterval(frequency)
+                        .setMode(Gnmi.SubscriptionMode.SAMPLE).build();
+                subscriptionListBuilder.addSubscription(subscription);
+                subscriptionListBuilder.setMode(Gnmi.SubscriptionList.Mode.STREAM);
+            });
+        });
+        requestBuilder.setSubscribe(subscriptionListBuilder.build());
+        StreamObserver<Gnmi.SubscribeRequest> requestStreamObserver = gNMIStub.subscribe(new GnmiDataHandler(handler, this.host, port));
+        requestStreamObserver.onNext(requestBuilder.build());
+        LOG.info("Subscribed to OpenConfig telemetry stream at {}:{}", host, port);
     }
 
     // Builds gnmi path based on https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-path-conventions.md

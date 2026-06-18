@@ -27,6 +27,10 @@ import com.google.common.collect.Iterables;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.opennms.features.openconfig.proto.gnmi.Gnmi;
 import org.opennms.features.openconfig.proto.jti.Telemetry;
+import org.opennms.features.openconfig.registry.YangRegistry;
+import org.opennms.features.openconfig.yang.OpenConfigGnmiDecoder;
+import org.opennms.features.openconfig.yang.OpenConfigGnmiDecoder.DecodedMetric;
+import org.opennms.features.openconfig.yang.OpenConfigGnmiDecoder.Update;
 import org.opennms.netmgt.collection.api.CollectionAgent;
 import org.opennms.netmgt.collection.api.CollectionAgentFactory;
 import org.opennms.netmgt.collection.api.CollectionSet;
@@ -47,6 +51,8 @@ import org.springframework.transaction.support.TransactionOperations;
 import javax.script.ScriptException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -64,6 +70,12 @@ public class OpenConfigAdapter extends AbstractScriptedCollectionAdapter {
     private TransactionOperations transactionTemplate;
 
     private String mode;
+
+    /** When set (with {@link #yangRegistry}), gNMI messages are decoded from this YANG model set
+     *  instead of the Groovy script (NMS-19857, Phase 2). */
+    private String modelSet;
+
+    private YangRegistry yangRegistry;
 
     public OpenConfigAdapter(AdapterDefinition adapterConfig, MetricRegistry metricRegistry) {
         super(adapterConfig, metricRegistry);
@@ -84,6 +96,10 @@ public class OpenConfigAdapter extends AbstractScriptedCollectionAdapter {
                 Gnmi.Notification notification = subscribeResponse.getUpdate();
                 long timeStamp = notification.getTimestamp();
                 CollectionAgent agent = getCollectionAgent(messageLog, null);
+                // Schema-driven decoding when a YANG model set is configured; otherwise the Groovy script.
+                if (!Strings.isNullOrEmpty(modelSet) && yangRegistry != null) {
+                    return buildSchemaCollectionSet(agent, subscribeResponse, timeStamp);
+                }
                 return buildCollectionSet(agent, subscribeResponse, timeStamp);
 
             }
@@ -116,6 +132,18 @@ public class OpenConfigAdapter extends AbstractScriptedCollectionAdapter {
 
     public void setMode(String mode) {
         this.mode = mode;
+    }
+
+    public String getModelSet() {
+        return modelSet;
+    }
+
+    public void setModelSet(String modelSet) {
+        this.modelSet = modelSet;
+    }
+
+    public void setYangRegistry(YangRegistry yangRegistry) {
+        this.yangRegistry = yangRegistry;
     }
 
 
@@ -151,6 +179,25 @@ public class OpenConfigAdapter extends AbstractScriptedCollectionAdapter {
             });
         }
         return agent;
+    }
+
+    private Stream<CollectionSetWithAgent> buildSchemaCollectionSet(CollectionAgent agent, Gnmi.SubscribeResponse response, long timeStamp) {
+        if (agent == null) {
+            LOG.warn("No collection agent resolved for OpenConfig message; dropping schema-decoded sample.");
+            return Stream.empty();
+        }
+        try {
+            final OpenConfigGnmiDecoder decoder = yangRegistry.decoderFor(modelSet);
+            final List<Update> updates = GnmiTelemetryFlattener.flatten(response);
+            final List<DecodedMetric> metrics = decoder.decode(updates);
+            // gNMI notification timestamps are nanoseconds since epoch.
+            final Date timestamp = timeStamp > 0 ? new Date(timeStamp / 1_000_000L) : null;
+            final CollectionSet collectionSet = SchemaDrivenCollectionSetBuilder.build(agent, metrics, timestamp);
+            return Stream.of(new CollectionSetWithAgent(agent, collectionSet));
+        } catch (final Exception e) {
+            LOG.warn("Schema-driven decode failed for model-set '{}': {}", modelSet, e.getMessage(), e);
+            return Stream.empty();
+        }
     }
 
     private Stream<CollectionSetWithAgent> buildCollectionSet(CollectionAgent collectionAgent, Object response, long timeStamp) {

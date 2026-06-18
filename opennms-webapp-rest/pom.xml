@@ -438,6 +438,12 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <!-- OpenConfig configuration (NMS-19857): Secure Credentials Vault API -->
+      <groupId>org.opennms.features.scv</groupId>
+      <artifactId>org.opennms.features.scv.api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>org.opennms.features.config.service</groupId>

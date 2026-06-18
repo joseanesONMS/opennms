@@ -251,6 +251,44 @@ const router = createRouter({
       }
     },
     {
+      path: '/openconfig',
+      name: 'OpenConfig',
+      component: () => import('@/containers/OpenConfigConfiguration.vue'),
+      beforeEnter: (to, from) => {
+        const checkRoles = () => {
+          if (!adminRole.value) {
+            showSnackBar({ msg: 'Must be admin to access OpenConfig configuration.' })
+            router.push(from.path)
+          }
+        }
+
+        if (rolesAreLoaded.value) {
+          checkRoles()
+        } else {
+          whenever(rolesAreLoaded, () => checkRoles())
+        }
+      }
+    },
+    {
+      path: '/yang-models',
+      name: 'YANG Model Sets',
+      component: () => import('@/containers/YangModelSetConfiguration.vue'),
+      beforeEnter: (to, from) => {
+        const checkRoles = () => {
+          if (!adminRole.value) {
+            showSnackBar({ msg: 'Must be admin to access the YANG model registry.' })
+            router.push(from.path)
+          }
+        }
+
+        if (rolesAreLoaded.value) {
+          checkRoles()
+        } else {
+          whenever(rolesAreLoaded, () => checkRoles())
+        }
+      }
+    },
+    {
       path: '/snmp-config',
       name: 'SNMP Config',
       component: () => import('@/containers/SnmpConfiguration.vue'),

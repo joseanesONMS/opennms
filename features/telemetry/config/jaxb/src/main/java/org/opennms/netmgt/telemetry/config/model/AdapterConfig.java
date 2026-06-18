@@ -65,6 +65,15 @@ public class AdapterConfig implements AdapterDefinition {
         return this.queue;
     }
 
+    /**
+     * Sets the owning queue back-reference. Normally populated by JAXB {@link #afterUnmarshal},
+     * this setter allows the config graph to be built programmatically (e.g. when materializing
+     * telemetryd configuration from the database).
+     */
+    public void setQueue(final QueueConfig queue) {
+        this.queue = queue;
+    }
+
     @Override
     public String getName() {
         return this.name;

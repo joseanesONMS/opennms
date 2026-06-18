@@ -21,6 +21,8 @@
     <!-- Automatically scan for @Component beans -->
     <context:component-scan base-package="org.opennms.web.rest.v2, org.opennms.web.rest.mapper.v2" />
     <onmsgi:reference id="trapdConfigDao" interface="org.opennms.netmgt.dao.api.TrapdConfigDao" />
+    <!-- OpenConfig configuration (NMS-19857): credential storage in the Secure Credentials Vault -->
+    <onmsgi:reference id="secureCredentialsVault" interface="org.opennms.features.scv.api.SecureCredentialsVault" />
 
     <import resource="classpath:/META-INF/cxf/cxf.xml" />
     <import resource="classpath:/META-INF/cxf/cxf-servlet.xml" />
